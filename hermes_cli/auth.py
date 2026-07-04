@@ -146,6 +146,12 @@ SERVICE_PROVIDER_NAMES: Dict[str, str] = {
 # any remote service.
 LMSTUDIO_NOAUTH_PLACEHOLDER = "dummy-lm-api-key"
 
+# Same rationale as LMSTUDIO_NOAUTH_PLACEHOLDER above, but for a local Ollama
+# server: Ollama's OpenAI-compatible endpoint ignores the Authorization
+# header entirely, but the API-key code paths still need a non-empty value
+# to treat the provider as configured. Sent only to local-ollama.
+OLLAMA_NOAUTH_PLACEHOLDER = "ollama"
+
 
 # =============================================================================
 # Provider Registry
@@ -211,6 +217,18 @@ PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
         inference_base_url="http://127.0.0.1:1234/v1",
         api_key_env_vars=("LM_API_KEY",),
         base_url_env_var="LM_BASE_URL",
+    ),
+    "local-ollama": ProviderConfig(
+        id="local-ollama",
+        name="Local Ollama",
+        auth_type="api_key",
+        inference_base_url="http://localhost:11434/v1",
+        # No API key required for a bare `ollama serve`; OLLAMA_API_KEY only
+        # matters for a hardened/remote Ollama instance behind a reverse
+        # proxy. resolve_api_key_provider_credentials() substitutes
+        # OLLAMA_NOAUTH_PLACEHOLDER when this is unset.
+        api_key_env_vars=("OLLAMA_API_KEY",),
+        base_url_env_var="OLLAMA_BASE_URL",
     ),
     "copilot": ProviderConfig(
         id="copilot",
@@ -6211,11 +6229,15 @@ def resolve_api_key_provider_credentials(provider_id: str) -> Dict[str, Any]:
     key_source = ""
     api_key, key_source = _resolve_api_key_provider_secret(provider_id, pconfig)
 
-    # No-auth LM Studio: substitute a placeholder so runtime / auxiliary_client
-    # see the local server as configured. doctor still reports unconfigured
-    # because get_api_key_provider_status uses the raw secret resolver.
+    # No-auth LM Studio / local Ollama: substitute a placeholder so runtime /
+    # auxiliary_client see the local server as configured. doctor still
+    # reports unconfigured because get_api_key_provider_status uses the raw
+    # secret resolver.
     if not api_key and provider_id == "lmstudio":
         api_key = LMSTUDIO_NOAUTH_PLACEHOLDER
+        key_source = key_source or "default"
+    elif not api_key and provider_id == "local-ollama":
+        api_key = OLLAMA_NOAUTH_PLACEHOLDER
         key_source = key_source or "default"
 
     env_url = ""

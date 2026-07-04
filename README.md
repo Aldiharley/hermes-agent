@@ -2,6 +2,8 @@
   <img src="assets/banner.png" alt="Hermes Agent" width="100%">
 </p>
 
+> **This is a fork of [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)** adding first-class support for local LLMs (a bare `ollama serve`, no API key or manual endpoint entry required) in both the CLI and desktop GUI model pickers. See [Local LLM Support](#local-llm-support-ollama) below. Everything else is unchanged from upstream — for the canonical project, issues, and docs, go to the link above.
+
 # Hermes Agent ☤
 <p align="center">
   <a href="https://hermes-agent.nousresearch.com/">Hermes Agent</a> | <a href="https://hermes-agent.nousresearch.com/">Hermes Desktop</a>
@@ -18,7 +20,7 @@
 
 **The self-improving AI agent built by [Nous Research](https://nousresearch.com).** It's the only agent with a built-in learning loop — it creates skills from experience, improves them during use, nudges itself to persist knowledge, searches its own past conversations, and builds a deepening model of who you are across sessions. Run it on a $5 VPS, a GPU cluster, or serverless infrastructure that costs nearly nothing when idle. It's not tied to your laptop — talk to it from Telegram while it works on a cloud VM.
 
-Use any model you want — [Nous Portal](https://portal.nousresearch.com), OpenRouter, OpenAI, your own endpoint, and [many others](https://hermes-agent.nousresearch.com/docs/integrations/providers). Switch with `hermes model` — no code changes, no lock-in.
+Use any model you want — [Nous Portal](https://portal.nousresearch.com), OpenRouter, OpenAI, your own endpoint, **a local Ollama server**, and [many others](https://hermes-agent.nousresearch.com/docs/integrations/providers). Switch with `hermes model` — no code changes, no lock-in.
 
 <table>
 <tr><td><b>A real terminal interface</b></td><td>Full TUI with multiline editing, slash-command autocomplete, conversation history, interrupt-and-redirect, and streaming tool output.</td></tr>
@@ -117,6 +119,23 @@ hermes doctor       # Diagnose any issues
 ```
 
 📖 **[Full documentation →](https://hermes-agent.nousresearch.com/docs/)**
+
+---
+
+## Local LLM Support (Ollama)
+
+**This fork adds zero-config local inference.** If you have [Ollama](https://ollama.ai) running locally (`ollama serve`, the default), Hermes detects it automatically — no API key, no manual endpoint entry, no config file edits.
+
+- **Auto-discovery**: every time you open the model picker (CLI `hermes model`, or the desktop app), Hermes probes `http://localhost:11434/v1/models` live and lists whatever models you've actually pulled (`qwen3.5`, `llama3.1`, `deepseek-r1`, etc.) — not a static list.
+- **No API key required**: local providers use a no-auth placeholder under the hood, the same pattern already used for LM Studio.
+- **Desktop GUI**: the model picker shows a **"Local Ollama"** entry with a blue **Local** badge; it's also reachable from the onboarding flow's **"I have an API key"** screen (you can leave the key field with any placeholder text — Ollama doesn't check it).
+- **Custom endpoint / port**: if your Ollama instance isn't on the default `localhost:11434`, set `OLLAMA_BASE_URL` (e.g. `OLLAMA_BASE_URL=http://192.168.1.50:11434/v1`) and Hermes will probe that instead.
+- **Portable**: this works on any machine with Ollama installed — Windows, macOS, or Linux — since `11434` is Ollama's own published default port, not something specific to any one setup.
+
+```bash
+ollama serve          # if it isn't already running
+hermes model          # pick "Local Ollama" from the list — your pulled models show up automatically
+```
 
 ---
 

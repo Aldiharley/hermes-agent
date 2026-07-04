@@ -307,12 +307,19 @@ function ProviderHeading({ provider }: { provider: ModelOptionProvider }) {
       </span>
     ) : null
 
+  const localBadge = provider.is_local ? (
+    <span className="rounded-sm bg-sky-500/15 px-1 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400">
+      {copy.local}
+    </span>
+  ) : null
+
   return (
     <span className="flex min-w-0 items-center gap-2">
       <span className="truncate">{provider.name}</span>
       <span className="font-mono text-xs font-normal normal-case tracking-normal text-muted-foreground">
         {provider.slug} · {provider.total_models ?? provider.models?.length ?? 0}
       </span>
+      {localBadge}
       {tierBadge}
     </span>
   )

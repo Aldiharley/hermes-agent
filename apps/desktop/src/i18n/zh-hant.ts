@@ -1879,6 +1879,7 @@ export const zhHant = defineLocale({
     proNeedsSubscription: 'Pro 模型需要付費 Nous 訂閱。',
     free: '免費',
     freeTier: '免費層',
+    local: '本機',
     priceTitle: '每百萬 Token 的輸入/輸出價格'
   },
 

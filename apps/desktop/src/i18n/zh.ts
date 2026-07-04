@@ -2131,6 +2131,7 @@ export const zh: Translations = {
     proNeedsSubscription: 'Pro 模型需要付费 Nous 订阅。',
     free: '免费',
     freeTier: '免费层',
+    local: '本地',
     priceTitle: '每百万 token 的输入/输出价格'
   },
 

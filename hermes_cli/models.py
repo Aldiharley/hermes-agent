@@ -1033,6 +1033,7 @@ CANONICAL_PROVIDERS: list[ProviderEntry] = [
     ProviderEntry("moa",            "Mixture of Agents",        "Mixture of Agents (named presets; aggregator acts after reference models)"),
     ProviderEntry("novita",         "NovitaAI",                 "NovitaAI (Cloud: Model API, Agent Sandbox, GPU Cloud)"),
     ProviderEntry("lmstudio",       "LM Studio",                "LM Studio (Local desktop app with built-in model server)"),
+    ProviderEntry("local-ollama",   "Local Ollama",             "Local Ollama (Local server on http://localhost:11434 — no API key needed)"),
     ProviderEntry("anthropic",      "Anthropic",                "Anthropic (Claude models via API key or Claude Code)"),
     ProviderEntry("openai-codex",   "OpenAI Codex",             "OpenAI Codex (Codex CLI via ChatGPT subscription or API key)"),
     ProviderEntry("openai-api",     "OpenAI API",               "OpenAI API (api.openai.com, API key)"),
@@ -3042,6 +3043,28 @@ def fetch_lmstudio_models(
     LM Studio support case once auth-enabled mode is turned on.
     """
     models = probe_lmstudio_models(api_key=api_key, base_url=base_url, timeout=timeout)
+    return models or []
+
+
+def fetch_local_ollama_models(
+    base_url: Optional[str] = None,
+    timeout: float = 2.0,
+) -> list[str]:
+    """Probe a local Ollama server's OpenAI-compatible ``/v1/models``.
+
+    Ollama needs no API key, so this is a thin no-auth wrapper around
+    ``fetch_api_models`` (empty ``api_key`` omits the Authorization header —
+    see ``probe_api_models`` above). Returns an empty list on any failure
+    (server not running, wrong port, etc.) so callers degrade gracefully.
+
+    Args:
+        base_url: Base URL of the local Ollama instance.
+                  Defaults to http://localhost:11434/v1
+        timeout:  Socket timeout in seconds. Kept short so the picker stays
+                  snappy when Ollama isn't running.
+    """
+    resolved_base = (base_url or "").strip().rstrip("/") or "http://localhost:11434/v1"
+    models = fetch_api_models("", resolved_base, timeout=timeout)
     return models or []
 
 

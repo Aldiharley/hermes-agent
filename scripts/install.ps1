@@ -3114,6 +3114,8 @@ function Write-Completion {
     Write-Host ""
     Write-Host "   hermes              " -NoNewline -ForegroundColor Green
     Write-Host "Start chatting"
+    Write-Host "   hermes model        " -NoNewline -ForegroundColor Green
+    Write-Host "Choose your LLM provider and model"
     Write-Host "   hermes setup        " -NoNewline -ForegroundColor Green
     Write-Host "Configure API keys & settings"
     Write-Host "   hermes config       " -NoNewline -ForegroundColor Green
@@ -3125,7 +3127,20 @@ function Write-Completion {
     Write-Host "   hermes update       " -NoNewline -ForegroundColor Green
     Write-Host "Update to latest version"
     Write-Host ""
-    
+
+    Write-Host "---------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "* Local Ollama:" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "   Already have " -NoNewline
+    Write-Host "ollama serve" -NoNewline -ForegroundColor Green
+    Write-Host " running on localhost:11434? Hermes"
+    Write-Host "   auto-detects it - no API key, no config. Run " -NoNewline
+    Write-Host "hermes model" -NoNewline -ForegroundColor Green
+    Write-Host " and"
+    Write-Host "   pick ""Local Ollama"" to use whatever models you've pulled."
+    Write-Host ""
+
     Write-Host "---------------------------------------------------------" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "[*] Restart your terminal for PATH changes to take effect" -ForegroundColor Yellow

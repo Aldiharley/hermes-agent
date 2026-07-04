@@ -273,6 +273,11 @@ export interface ModelOptionProvider {
   /** Per-model option support, keyed by model id (present when the picker
    *  requested capabilities). Lets the UI gate fast/reasoning controls. */
   capabilities?: Record<string, ModelCapabilities>
+  /** True for a local, no-auth inference endpoint (e.g. local-ollama, or a
+   *  user-defined provider pointing at localhost/LAN). Backend-computed. */
+  is_local?: boolean
+  /** Base URL of the provider's endpoint. Present for local/custom providers. */
+  api_url?: string
 }
 
 export interface ModelCapabilities {

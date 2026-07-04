@@ -3985,15 +3985,19 @@ def _prompt_api_key(pconfig, existing_key: str, provider_id: str = "") -> tuple:
     ``return`` immediately — the user cancelled entry, declined to replace, or
     cleared the key and is now unconfigured.
     """
-    from hermes_cli.auth import LMSTUDIO_NOAUTH_PLACEHOLDER
+    from hermes_cli.auth import LMSTUDIO_NOAUTH_PLACEHOLDER, OLLAMA_NOAUTH_PLACEHOLDER
     from hermes_cli.config import save_env_value
     from hermes_cli.secret_prompt import masked_secret_prompt
 
     key_env = pconfig.api_key_env_vars[0] if pconfig.api_key_env_vars else ""
+    _noauth_placeholder = {
+        "lmstudio": LMSTUDIO_NOAUTH_PLACEHOLDER,
+        "local-ollama": OLLAMA_NOAUTH_PLACEHOLDER,
+    }.get(provider_id)
 
     def _prompt_new_key(*, allow_lmstudio_default: bool) -> str:
-        if provider_id == "lmstudio" and allow_lmstudio_default:
-            prompt = f"{key_env} (Enter for no-auth default {LMSTUDIO_NOAUTH_PLACEHOLDER!r}): "
+        if _noauth_placeholder and allow_lmstudio_default:
+            prompt = f"{key_env} (Enter for no-auth default {_noauth_placeholder!r}): "
         else:
             prompt = f"{key_env} (or Enter to cancel): "
         try:
@@ -4001,8 +4005,8 @@ def _prompt_api_key(pconfig, existing_key: str, provider_id: str = "") -> tuple:
         except (KeyboardInterrupt, EOFError):
             print()
             return ""
-        if not entered and provider_id == "lmstudio" and allow_lmstudio_default:
-            return LMSTUDIO_NOAUTH_PLACEHOLDER
+        if not entered and _noauth_placeholder and allow_lmstudio_default:
+            return _noauth_placeholder
         return entered
 
     # First-time entry ────────────────────────────────────────────────────

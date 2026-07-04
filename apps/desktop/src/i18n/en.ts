@@ -1963,6 +1963,7 @@ export const en: Translations = {
     proNeedsSubscription: 'Pro models need a paid Nous subscription.',
     free: 'Free',
     freeTier: 'Free tier',
+    local: 'Local',
     priceTitle: 'Input / Output price per million tokens'
   },
 

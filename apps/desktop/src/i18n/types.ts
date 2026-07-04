@@ -1604,6 +1604,7 @@ export interface Translations {
     proNeedsSubscription: string
     free: string
     freeTier: string
+    local: string
     priceTitle: string
   }
 

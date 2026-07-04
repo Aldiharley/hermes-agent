@@ -315,7 +315,15 @@ def _apply_picker_hints(rows: list[dict]) -> None:
         # populated `models` OR a non-canonical source.
         is_skeleton = row.get("source") == "canonical" and not row.get("models")
         row["authenticated"] = not is_skeleton
-        if not is_skeleton or row.get("is_user_defined"):
+        if row.get("is_user_defined"):
+            continue
+        # Local providers (e.g. local-ollama) never go through a real auth
+        # flow — "authenticated" here just means "the live probe found
+        # models right now", not that the user configured anything. Always
+        # expose auth_type/key_env for these so the onboarding / "I have an
+        # API key" picker can surface them even while the probe is
+        # currently succeeding (the common case once Ollama is running).
+        if not is_skeleton and not row.get("is_local"):
             continue
         cfg = PROVIDER_REGISTRY.get(row["slug"])
         auth_type = cfg.auth_type if cfg else "api_key"
