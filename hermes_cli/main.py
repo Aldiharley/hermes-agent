@@ -6200,11 +6200,16 @@ def _atomic_replace_dir(src: str, dst: str) -> None:
         shutil.rmtree(backup, ignore_errors=True)
 
 
-def _update_via_zip(args):
+def _update_via_zip(args, origin_url: Optional[str] = None):
     """Update Hermes Agent by downloading a ZIP archive.
 
     Used on Windows when git file I/O is broken (antivirus, NTFS filter
     drivers causing 'Invalid argument' errors on file creation).
+
+    ``origin_url`` is the caller's already-resolved ``origin`` remote (see
+    ``_get_origin_url``) — when it points to a github.com fork, the archive
+    is pulled from that fork instead of the official repo, so this fallback
+    path can't silently overwrite a fork's own commits with upstream's.
     """
     import tempfile
     import zipfile
@@ -6229,9 +6234,10 @@ def _update_via_zip(args):
             f"--branch {branch}`, or update against main with `hermes update`."
         )
         sys.exit(1)
-    zip_url = (
-        f"https://github.com/NousResearch/hermes-agent/archive/refs/heads/{branch}.zip"
-    )
+    owner_repo = _github_owner_repo_from_url(origin_url) or "NousResearch/hermes-agent"
+    if owner_repo != "NousResearch/hermes-agent":
+        print(f"→ Updating fork ({owner_repo}) via ZIP fallback")
+    zip_url = f"https://github.com/{owner_repo}/archive/refs/heads/{branch}.zip"
 
     print("→ Downloading latest version...")
     tmp_dir = tempfile.mkdtemp(prefix="hermes-update-")
@@ -6678,6 +6684,24 @@ def _is_fork(origin_url: Optional[str]) -> bool:
         if normalized == official_normalized:
             return False
     return True
+
+
+def _github_owner_repo_from_url(origin_url: Optional[str]) -> Optional[str]:
+    """Extract ``owner/repo`` from a github.com remote URL (SSH or HTTPS).
+
+    Returns None for anything that isn't a github.com remote (no origin,
+    a GHE/GitLab host, etc.) so callers can fall back to the official repo.
+    """
+    if not origin_url:
+        return None
+    import re
+
+    m = re.match(
+        r"^(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)"
+        r"([^/]+/[^/]+?)(?:\.git)?/?$",
+        origin_url.strip(),
+    )
+    return m.group(1) if m else None
 
 
 def _has_upstream_remote(git_cmd: list[str], cwd: Path) -> bool:
@@ -9507,7 +9531,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
     if use_zip_update:
         # ZIP-based update for Windows when git is broken
         try:
-            _update_via_zip(args)
+            _update_via_zip(args, origin_url=origin_url)
         finally:
             _resume_windows_gateways_after_update(_windows_gateway_resume)
         return
@@ -10965,7 +10989,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             print(f"⚠ Git update failed: {e}")
             print("→ Falling back to ZIP download...")
             print()
-            _update_via_zip(args)
+            _update_via_zip(args, origin_url=origin_url)
         else:
             print(f"✗ Update failed: {e}")
             sys.exit(1)
