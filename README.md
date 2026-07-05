@@ -54,6 +54,8 @@ Run this in PowerShell:
 iex (irm https://raw.githubusercontent.com/Aldiharley/hermes-agent/main/scripts/install.ps1)
 ```
 
+**Prefer double-clicking over typing a command?** Download [`scripts/install.cmd`](scripts/install.cmd) and double-click it (or run it from `cmd.exe`) — it's a plain, readable batch file that just launches the same PowerShell installer above, no compiled binary involved. Deliberately **not** a compiled `.exe`: a freshly self-compiled, unsigned executable is one of the more reliable ways to get flagged by antivirus/SmartScreen — the official signed `Hermes-Setup.exe` avoids that because it's actually code-signed, which a homemade one-off wouldn't be.
+
 The installer handles everything: uv, Python 3.11, Node.js, ripgrep, ffmpeg, **and a portable Git Bash** (MinGit, unpacked to `%LOCALAPPDATA%\hermes\git` — no admin required, completely isolated from any system Git install). Hermes uses this bundled Git Bash to run shell commands.
 
 If you already have Git installed, the installer detects it and uses that instead. Otherwise a ~45MB MinGit download is all you need — it won't touch or interfere with any system Git.
