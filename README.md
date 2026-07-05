@@ -58,6 +58,19 @@ The installer handles everything: uv, Python 3.11, Node.js, ripgrep, ffmpeg, **a
 
 If you already have Git installed, the installer detects it and uses that instead. Otherwise a ~45MB MinGit download is all you need — it won't touch or interfere with any system Git.
 
+**Choosing a different install location:** by default Hermes installs under `%LOCALAPPDATA%\hermes` (your Windows user profile — not necessarily the `C:` drive; some profiles are redirected elsewhere). When you run the one-liner directly in a real PowerShell window, the installer now asks first and lets you type a different folder (press Enter to keep the default). If you'd rather set it non-interactively — e.g. scripted installs, or piping through something other than a console — set `HERMES_HOME` first or pass `-HermesHome`:
+
+```powershell
+$env:HERMES_HOME = "D:\HermesAgent"
+iex (irm https://raw.githubusercontent.com/Aldiharley/hermes-agent/main/scripts/install.ps1)
+```
+```powershell
+# or, after downloading the script:
+.\install.ps1 -HermesHome "D:\HermesAgent"
+```
+
+Note this does **not** by itself resolve the `uv.exe` antivirus false-positive below — that's a behavioral flag on the binary itself, not the folder it lives in. It's still useful if your environment restricts `AppData\Local` specifically, or you just want Hermes off a space-constrained `C:` drive.
+
 > **Android / Termux:** The tested manual path is documented in the [Termux guide](https://hermes-agent.nousresearch.com/docs/getting-started/termux). On Termux, Hermes installs a curated `.[termux]` extra because the full `.[all]` extra currently pulls Android-incompatible voice dependencies.
 >
 > **Windows:** Native Windows is fully supported — the PowerShell one-liner above installs everything. If you'd rather use WSL2, the Linux command works there too. Native Windows install lives under `%LOCALAPPDATA%\hermes`; WSL2 installs under `~/.hermes` as on Linux.
@@ -73,7 +86,7 @@ hermes              # start chatting!
 
 #### Windows Defender or antivirus flags `uv.exe` as malware
 
-If your antivirus (Bitdefender, Windows Defender, etc.) quarantines `uv.exe` from the Hermes `bin` folder (`%LOCALAPPDATA%\hermes\bin\uv.exe`), this is a **false positive**. The file is Astral's `uv` — the Rust Python package manager Hermes bundles to manage its Python environment. ML-based antivirus engines commonly flag unsigned Rust binaries that download and install packages.
+If your antivirus (Bitdefender, Windows Defender, etc.) quarantines `uv.exe` from the Hermes `bin` folder (`%LOCALAPPDATA%\hermes\bin\uv.exe`), this is a **false positive**. The file is Astral's `uv` — the Rust Python package manager Hermes bundles to manage its Python environment. ML-based antivirus engines commonly flag unsigned Rust binaries that download and install packages — this is a behavioral flag on `uv.exe` itself, so installing to a different folder (see above) won't avoid it; use the verification/whitelisting steps below instead.
 
 **To verify your copy is authentic:**
 

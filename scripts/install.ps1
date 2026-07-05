@@ -3510,6 +3510,44 @@ try {
         exit 0
     }
 
+    # Let an interactive user pick a custom install location instead of
+    # always silently defaulting under %LOCALAPPDATA%. -HermesHome/-InstallDir
+    # and $env:HERMES_HOME already work today (undocumented); this just makes
+    # the choice discoverable for the canonical `irm | iex` one-liner. Skipped
+    # whenever the location is already decided some other way, or there's no
+    # real console to prompt on (the piped one-liner has no usable stdin --
+    # [Environment]::UserInteractive is false there, same guard already used
+    # elsewhere in this script for the WhatsApp/gateway/stash-restore prompts).
+    $hermesHomeExplicit = $PSBoundParameters.ContainsKey("HermesHome") `
+        -or $PSBoundParameters.ContainsKey("InstallDir") `
+        -or [bool]$env:HERMES_HOME
+    if (-not $hermesHomeExplicit -and -not $NonInteractive) {
+        $hasConsole = $false
+        try {
+            $hasConsole = (
+                [Environment]::UserInteractive `
+                -and (-not [Console]::IsInputRedirected) `
+                -and (-not [Console]::IsOutputRedirected) `
+                -and ($Host.Name -eq "ConsoleHost")
+            )
+        } catch { $hasConsole = $false }
+        if ($hasConsole) {
+            Write-Host ""
+            Write-Host "Hermes installs to " -NoNewline -ForegroundColor Cyan
+            Write-Host $HermesHome -NoNewline -ForegroundColor Yellow
+            Write-Host " by default." -ForegroundColor Cyan
+            Write-Host "(Your Windows profile's LOCALAPPDATA -- not necessarily the C: drive; a" -ForegroundColor Cyan
+            Write-Host " different folder here doesn't change antivirus behavior toward the" -ForegroundColor Cyan
+            Write-Host " bundled uv.exe -- see the README's antivirus troubleshooting section.)" -ForegroundColor Cyan
+            $customHome = Read-Host "Press Enter to accept, or type a different install folder"
+            if ($customHome -and $customHome.Trim()) {
+                $HermesHome = [System.IO.Path]::GetFullPath($customHome.Trim())
+                $InstallDir = Join-Path $HermesHome "hermes-agent"
+                Write-Info "Installing to $HermesHome"
+            }
+        }
+    }
+
     # Default: full install (today's behavior, plus optional -NonInteractive
     # and -Json layered on by the params above).
     Main
