@@ -1033,6 +1033,7 @@ CANONICAL_PROVIDERS: list[ProviderEntry] = [
     ProviderEntry("moa",            "Mixture of Agents",        "Mixture of Agents (named presets; aggregator acts after reference models)"),
     ProviderEntry("novita",         "NovitaAI",                 "NovitaAI (Cloud: Model API, Agent Sandbox, GPU Cloud)"),
     ProviderEntry("lmstudio",       "LM Studio",                "LM Studio (Local desktop app with built-in model server)"),
+    ProviderEntry("ollama",         "Ollama",                   "Ollama (Local server on http://localhost:11434 — no API key needed)"),
     ProviderEntry("anthropic",      "Anthropic",                "Anthropic (Claude models via API key or Claude Code)"),
     ProviderEntry("openai-codex",   "OpenAI Codex",             "OpenAI Codex (Codex CLI via ChatGPT subscription or API key)"),
     ProviderEntry("openai-api",     "OpenAI API",               "OpenAI API (api.openai.com, API key)"),
@@ -1270,7 +1271,9 @@ _PROVIDER_ALIASES = {
     "lmstudio": "lmstudio",
     "lm-studio": "lmstudio",
     "lm_studio": "lmstudio",
-    "ollama": "custom",  # bare "ollama" = local; use "ollama-cloud" for cloud
+    # "ollama" is now a first-class CANONICAL_PROVIDERS entry — no longer
+    # aliased to "custom" (see hermes_cli/auth.py's PROVIDER_REGISTRY and
+    # resolve_provider() for the matching fix). "ollama-cloud" stays separate.
     "ollama_cloud": "ollama-cloud",
 }
 
@@ -3043,6 +3046,61 @@ def fetch_lmstudio_models(
     """
     models = probe_lmstudio_models(api_key=api_key, base_url=base_url, timeout=timeout)
     return models or []
+
+
+def fetch_ollama_models(
+    base_url: Optional[str] = None,
+    timeout: float = 2.0,
+) -> list[str]:
+    """Fetch locally-pulled model tags from Ollama's native ``/api/tags``.
+
+    Ollama's OpenAI-compatible ``/v1/models`` can miss or mislabel models
+    that are tagged in a way the compatibility shim doesn't expose cleanly
+    (the recurring "model not found" reports despite `ollama list` showing
+    it installed). ``/api/tags`` is Ollama's own authoritative local model
+    list and is what `ollama list` itself reads — matches the approach
+    ``agent.model_metadata.detect_local_server_type()`` already uses to
+    identify a local Ollama server.
+
+    No API key needed — a bare ``ollama serve`` has no auth. Returns an
+    empty list on any failure (server not running, wrong port, etc.) so
+    callers degrade gracefully.
+
+    Args:
+        base_url: Base URL of the local Ollama instance. Accepts either the
+                  bare host (``http://localhost:11434``) or the OpenAI-compat
+                  form with a trailing ``/v1`` (stripped before probing, since
+                  ``/api/tags`` lives under the bare host). Defaults to
+                  ``http://localhost:11434``.
+        timeout:  Socket timeout in seconds. Kept short so the picker stays
+                  snappy when Ollama isn't running.
+    """
+    resolved_base = (base_url or "").strip().rstrip("/") or "http://localhost:11434"
+    if resolved_base.endswith("/v1"):
+        resolved_base = resolved_base[: -len("/v1")]
+
+    url = resolved_base + "/api/tags"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status != 200:
+                return []
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    except Exception:
+        return []
+
+    raw_models = data.get("models") if isinstance(data, dict) else None
+    if not isinstance(raw_models, list):
+        return []
+
+    tags: list[str] = []
+    for entry in raw_models:
+        if not isinstance(entry, dict):
+            continue
+        tag = str(entry.get("model") or entry.get("name") or "").strip()
+        if tag and tag not in tags:
+            tags.append(tag)
+    return tags
 
 
 def ensure_lmstudio_model_loaded(

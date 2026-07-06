@@ -1602,6 +1602,26 @@ def list_authenticated_providers(
             live = [current_model]
         curated["lmstudio"] = live
 
+    # --- Ollama: no-auth local endpoint, mirrors the LM Studio block above.
+    # Unlike LM Studio, this fires unconditionally (no env-var gate) since a
+    # bare `ollama serve` needs zero configuration — probing an unreachable
+    # localhost port fails near-instantly (connection refused), so this
+    # stays cheap on the common "Ollama isn't installed" path. Fixes
+    # #57255/#57246 (provider: ollama silently falling through to custom)
+    # by giving the picker a real, discoverable row instead of nothing.
+    if "ollama" not in curated:
+        from hermes_cli.models import fetch_ollama_models
+        is_current_ollama = current_provider.strip().lower() == "ollama"
+        ollama_base = (
+            os.environ.get("OLLAMA_BASE_URL")
+            or (current_base_url if is_current_ollama and current_base_url else None)
+            or "http://localhost:11434/v1"
+        )
+        live_ollama = fetch_ollama_models(base_url=ollama_base, timeout=1.5)
+        if not live_ollama and is_current_ollama and current_model:
+            live_ollama = [current_model]
+        curated["ollama"] = live_ollama
+
     # --- 1. Check Hermes-mapped providers ---
     from hermes_cli.models import _AGGREGATOR_PROVIDERS as _AGG_PROVIDERS
     from hermes_cli.providers import ALIASES as _PROVIDER_ALIAS_TABLE
@@ -1863,6 +1883,33 @@ def list_authenticated_providers(
 
     for _cp in _canon_provs:
         if _cp.slug.lower() in seen_slugs:
+            continue
+
+        # Ollama has no API key by design, so it never has an env var or
+        # auth-store credential to gate on like every other provider here.
+        # Treat "the live /api/tags probe above found something" (or the
+        # user already being switched to it) as the picker's configured
+        # signal instead — same visibility contract as LM Studio, just keyed
+        # on reachability rather than an opt-in env var.
+        if _cp.slug == "ollama":
+            _cp_ollama_models = curated.get("ollama", [])
+            if not _cp_ollama_models and current_provider.strip().lower() != "ollama":
+                continue
+            _cp_total = len(_cp_ollama_models)
+            _cp_top = _cp_ollama_models[:max_models] if max_models is not None else _cp_ollama_models
+            results.append({
+                "slug": _cp.slug,
+                "name": _cp.label,
+                "is_current": _cp.slug == current_provider,
+                "is_user_defined": False,
+                "models": _cp_top,
+                "total_models": _cp_total,
+                "source": "canonical",
+                "is_local": True,
+                "api_url": ollama_base,
+            })
+            seen_slugs.add(_cp.slug.lower())
+            _record_builtin_endpoint(_cp.slug)
             continue
 
         # Check credentials via PROVIDER_REGISTRY (auth.py)

@@ -146,6 +146,12 @@ SERVICE_PROVIDER_NAMES: Dict[str, str] = {
 # any remote service.
 LMSTUDIO_NOAUTH_PLACEHOLDER = "dummy-lm-api-key"
 
+# Same rationale as LMSTUDIO_NOAUTH_PLACEHOLDER above, but for a local Ollama
+# server: a bare `ollama serve` needs no API key at all, but the API-key code
+# paths still need a non-empty value to treat the provider as configured.
+# Sent only to local Ollama instances, never to any remote service.
+OLLAMA_NOAUTH_PLACEHOLDER = "ollama"
+
 
 # =============================================================================
 # Provider Registry
@@ -211,6 +217,21 @@ PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
         inference_base_url="http://127.0.0.1:1234/v1",
         api_key_env_vars=("LM_API_KEY",),
         base_url_env_var="LM_BASE_URL",
+    ),
+    "ollama": ProviderConfig(
+        id="ollama",
+        name="Ollama",
+        auth_type="api_key",
+        # OpenAI-compatible surface for actual chat completions. Discovery
+        # (fetch_ollama_models) hits Ollama's native /api/tags instead, which
+        # is more authoritative than /v1/models for what's actually pulled.
+        inference_base_url="http://localhost:11434/v1",
+        # No API key required for a bare `ollama serve`; OLLAMA_API_KEY only
+        # matters for a hardened/remote Ollama instance behind a reverse
+        # proxy. resolve_api_key_provider_credentials() substitutes
+        # OLLAMA_NOAUTH_PLACEHOLDER when this is unset.
+        api_key_env_vars=("OLLAMA_API_KEY",),
+        base_url_env_var="OLLAMA_BASE_URL",
     ),
     "copilot": ProviderConfig(
         id="copilot",
@@ -1627,8 +1648,14 @@ def resolve_provider(
         "go": "opencode-go", "opencode-go-sub": "opencode-go",
         "kilo": "kilocode", "kilo-code": "kilocode", "kilo-gateway": "kilocode",
         "lmstudio": "lmstudio", "lm-studio": "lmstudio", "lm_studio": "lmstudio",
-        # Local server aliases — route through the generic custom provider
-        "ollama": "custom", "ollama_cloud": "ollama-cloud",
+        # "ollama" is a first-class PROVIDER_REGISTRY entry (see below) — no
+        # longer aliased through "custom". Fixes #57255/#57246: routing it
+        # through "custom" meant a bare OLLAMA_BASE_URL ending in "/v1" (the
+        # documented value) fell through generic custom-endpoint handling
+        # instead of the provider's own base_url/auth_type.
+        "ollama_cloud": "ollama-cloud",
+        # Other local server aliases still route through the generic custom
+        # provider — not part of this fix, no open bug reports against them.
         "vllm": "custom", "llamacpp": "custom",
         "llama.cpp": "custom", "llama-cpp": "custom",
     }
@@ -1722,11 +1749,14 @@ def resolve_provider(
             continue
         # GitHub tokens are commonly present for repo/tool access but should not
         # hijack inference auto-selection unless the user explicitly chooses
-        # Copilot/GitHub Models as the provider. LM Studio is a local server
-        # whose availability isn't implied by LM_API_KEY presence (it may be
-        # offline, and the no-auth setup uses a placeholder value), so it
-        # also requires explicit selection.
-        if pid in {"copilot", "lmstudio"}:
+        # Copilot/GitHub Models as the provider. LM Studio and Ollama are
+        # local servers whose availability isn't implied by their API-key env
+        # var's presence (they may be offline, and their no-auth setup uses a
+        # placeholder value), so they also require explicit selection. Ollama
+        # additionally shares OLLAMA_API_KEY with "ollama-cloud" — without
+        # this exclusion, setting that var for cloud use would wrongly
+        # auto-select local "ollama" instead (it's checked first below).
+        if pid in {"copilot", "lmstudio", "ollama"}:
             continue
         for env_var in pconfig.api_key_env_vars:
             if has_usable_secret(os.getenv(env_var, "")):
@@ -6211,11 +6241,15 @@ def resolve_api_key_provider_credentials(provider_id: str) -> Dict[str, Any]:
     key_source = ""
     api_key, key_source = _resolve_api_key_provider_secret(provider_id, pconfig)
 
-    # No-auth LM Studio: substitute a placeholder so runtime / auxiliary_client
-    # see the local server as configured. doctor still reports unconfigured
-    # because get_api_key_provider_status uses the raw secret resolver.
+    # No-auth LM Studio / Ollama: substitute a placeholder so runtime /
+    # auxiliary_client see the local server as configured. doctor still
+    # reports unconfigured because get_api_key_provider_status uses the raw
+    # secret resolver.
     if not api_key and provider_id == "lmstudio":
         api_key = LMSTUDIO_NOAUTH_PLACEHOLDER
+        key_source = key_source or "default"
+    elif not api_key and provider_id == "ollama":
+        api_key = OLLAMA_NOAUTH_PLACEHOLDER
         key_source = key_source or "default"
 
     env_url = ""

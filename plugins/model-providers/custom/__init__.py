@@ -75,7 +75,10 @@ class CustomProfile(ProviderProfile):
 custom = CustomProfile(
     name="custom",
     aliases=(
-        "ollama",
+        # "ollama" is now a first-class provider (hermes_cli/auth.py's
+        # PROVIDER_REGISTRY) — no longer an alias of "custom". Fixes
+        # #57255/#57246 (provider: ollama silently falling through to
+        # provider=custom).
         "local",
         "vllm",
         "llamacpp",

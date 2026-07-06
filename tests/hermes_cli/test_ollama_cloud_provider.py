@@ -56,13 +56,15 @@ class TestOllamaCloudAliases:
         assert resolve_provider("ollama_cloud") == "ollama-cloud"
 
     def test_bare_ollama_stays_local(self):
-        """Bare 'ollama' alias routes to 'custom' (local) — not cloud."""
-        assert resolve_provider("ollama") == "custom"
+        """Bare 'ollama' resolves to its own first-class local provider —
+        not cloud, and (as of #57255/#57246's fix) no longer "custom" either."""
+        assert resolve_provider("ollama") == "ollama"
 
     def test_models_py_aliases(self):
         assert _PROVIDER_ALIASES.get("ollama_cloud") == "ollama-cloud"
-        # bare "ollama" stays local
-        assert _PROVIDER_ALIASES.get("ollama") == "custom"
+        # bare "ollama" is a first-class CANONICAL_PROVIDERS entry now, not
+        # an alias of anything — absent from _PROVIDER_ALIASES entirely.
+        assert _PROVIDER_ALIASES.get("ollama") is None
 
     def test_normalize_provider(self):
         assert normalize_provider("ollama-cloud") == "ollama-cloud"
